@@ -85,6 +85,24 @@ func TestFormat(t *testing.T) {
 			expected:     "block1 {}\n\nblock2 {}\n\n",
 			expectChange: true,
 		},
+		{
+			name:         "resource blocks spacing",
+			input:        "resource \"example1\" \"test1\" {\n  foo = bar\n}\nresource \"example2\" \"test2\" {\n  baz = qux\n}",
+			expected:     "resource \"example1\" \"test1\" {\n  foo = bar\n}\n\nresource \"example2\" \"test2\" {\n  baz = qux\n}\n\n",
+			expectChange: true,
+		},
+		{
+			name:         "resource blocks with too many newlines",
+			input:        "resource \"example1\" \"test1\" {\n  foo = bar\n}\n\n\n\nresource \"example2\" \"test2\" {\n  baz = qux\n}",
+			expected:     "resource \"example1\" \"test1\" {\n  foo = bar\n}\n\nresource \"example2\" \"test2\" {\n  baz = qux\n}\n\n",
+			expectChange: true,
+		},
+		{
+			name:         "resource blocks with exactly two newlines",
+			input:        "resource \"example1\" \"test1\" {\n  foo = bar\n}\n\nresource \"example2\" \"test2\" {\n  baz = qux\n}\n\n",
+			expected:     "resource \"example1\" \"test1\" {\n  foo = bar\n}\n\nresource \"example2\" \"test2\" {\n  baz = qux\n}\n\n",
+			expectChange: false,
+		},
 	}
 
 	for _, tt := range tests {

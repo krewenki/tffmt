@@ -16,8 +16,9 @@ import (
 var (
 	reOpenParenBrace  = regexp.MustCompile(`\(\s*{`)
 	reCloseBraceParen = regexp.MustCompile(`}\s*\)`)
-	reCollapseBlank   = regexp.MustCompile(`\n{3,}`)     // ≥3 ⇒ 2
-	rePadSingle       = regexp.MustCompile(`}\n([^\n])`) // 1 ⇒ 2
+	reCollapseBlank   = regexp.MustCompile(`\n{3,}`)                // ≥3 ⇒ 2
+	rePadSingle       = regexp.MustCompile(`}\n([^\n])`)            // 1 ⇒ 2
+	reResourceBlocks  = regexp.MustCompile(`}\n{0,2}(resource\s+)`) // Ensure exactly 2 newlines between resource blocks
 )
 
 // Formatter holds configuration for the formatting process
@@ -43,6 +44,9 @@ func (f *Formatter) Format(content []byte) []byte {
 	// 3. 2 blank lines between top-level blocks
 	form = reCollapseBlank.ReplaceAll(form, []byte("\n\n"))
 	form = rePadSingle.ReplaceAll(form, []byte("}\n\n$1"))
+
+	// Ensure exactly two newlines between resource blocks
+	form = reResourceBlocks.ReplaceAll(form, []byte("}\n\n$1"))
 
 	// 4. ensure exactly two trailing newlines
 	form = bytes.TrimRight(form, "\n")
