@@ -62,6 +62,11 @@ func (f *Formatter) Preprocess(in []byte) []byte {
 		out = f.sortResourceInputs(out)
 	}
 
+	// Apply variable sorting if SortVars is enabled
+	if f.Config.SortVars {
+		out = f.sortVariableBlocks(out)
+	}
+
 	return out
 }
 
@@ -106,6 +111,53 @@ func (f *Formatter) sortResourceInputs(in []byte) []byte {
 					expr := attrMap[name].Expr().BuildTokens(nil)
 					block.Body().SetAttributeRaw(name, expr)
 				}
+			}
+		}
+	}
+
+	// Return the formatted output
+	return file.Bytes()
+}
+
+// sortVariableBlocks alphabetically sorts variables within variable blocks
+func (f *Formatter) sortVariableBlocks(in []byte) []byte {
+	// Parse the HCL content
+	file, err := hclwrite.ParseConfig(in, "", hcl.InitialPos)
+	if err != nil {
+		// If there's an error parsing, return the original content unchanged
+		return in
+	}
+
+	// Get all variable blocks
+	var varBlocks []*hclwrite.Block
+	for _, block := range file.Body().Blocks() {
+		if block.Type() == "variable" {
+			varBlocks = append(varBlocks, block)
+		}
+	}
+
+	// If there are multiple variable blocks, sort them by their labels
+	if len(varBlocks) > 1 {
+		// Remove all variable blocks from the file body
+		for _, block := range varBlocks {
+			file.Body().RemoveBlock(block)
+		}
+
+		// Sort variable blocks by their labels (names)
+		sort.Slice(varBlocks, func(i, j int) bool {
+			if len(varBlocks[i].Labels()) == 0 || len(varBlocks[j].Labels()) == 0 {
+				return false
+			}
+			return string(varBlocks[i].Labels()[0]) < string(varBlocks[j].Labels()[0])
+		})
+
+		// Add the blocks back in sorted order
+		for i, block := range varBlocks {
+			file.Body().AppendBlock(block)
+
+			// Add a newline between blocks except after the last block
+			if i < len(varBlocks)-1 {
+				file.Body().AppendNewline()
 			}
 		}
 	}

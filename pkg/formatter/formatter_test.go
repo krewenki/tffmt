@@ -192,3 +192,160 @@ resource "aws_instance" "db" {
 		})
 	}
 }
+
+// TestSortVars verifies the sort-vars functionality
+func TestSortVars(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+		sortFlag bool
+	}{
+		{
+			name: "sort vars enabled",
+			input: `variable "zone" {
+  type        = string
+  description = "Deployment zone"
+  default     = "us-west-1a"
+}
+
+variable "ami" {
+  type        = string
+  description = "AMI ID to use"
+  default     = "ami-12345"
+}
+
+variable "instance_type" {
+  type        = string
+  description = "Instance type"
+  default     = "t2.micro"
+}`,
+			expected: `variable "ami" {
+  type        = string
+  description = "AMI ID to use"
+  default     = "ami-12345"
+}
+
+variable "instance_type" {
+  type        = string
+  description = "Instance type"
+  default     = "t2.micro"
+}
+
+variable "zone" {
+  type        = string
+  description = "Deployment zone"
+  default     = "us-west-1a"
+}`,
+			sortFlag: true,
+		},
+		{
+			name: "sort vars disabled",
+			input: `variable "zone" {
+  type        = string
+  description = "Deployment zone"
+  default     = "us-west-1a"
+}
+
+variable "ami" {
+  type        = string
+  description = "AMI ID to use"
+  default     = "ami-12345"
+}
+
+variable "instance_type" {
+  type        = string
+  description = "Instance type"
+  default     = "t2.micro"
+}`,
+			expected: `variable "zone" {
+  type        = string
+  description = "Deployment zone"
+  default     = "us-west-1a"
+}
+
+variable "ami" {
+  type        = string
+  description = "AMI ID to use"
+  default     = "ami-12345"
+}
+
+variable "instance_type" {
+  type        = string
+  description = "Instance type"
+  default     = "t2.micro"
+}`,
+			sortFlag: false,
+		},
+		{
+			name: "mixed with other blocks",
+			input: `resource "aws_instance" "example" {
+  ami           = var.ami
+  instance_type = var.instance_type
+}
+
+variable "zone" {
+  type        = string
+  default     = "us-west-1a"
+}
+
+variable "ami" {
+  type        = string
+  default     = "ami-12345"
+}
+
+output "instance_ip" {
+  value = aws_instance.example.public_ip
+}`,
+			expected: `resource "aws_instance" "example" {
+  ami           = var.ami
+  instance_type = var.instance_type
+}
+
+variable "ami" {
+  type        = string
+  default     = "ami-12345"
+}
+
+variable "zone" {
+  type        = string
+  default     = "us-west-1a"
+}
+
+output "instance_ip" {
+  value = aws_instance.example.public_ip
+}`,
+			sortFlag: true,
+		},
+		{
+			name: "single variable block",
+			input: `variable "single_var" {
+  type    = string
+  default = "value"
+}`,
+			expected: `variable "single_var" {
+  type    = string
+  default = "value"
+}`,
+			sortFlag: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.NewConfig()
+			cfg.SortVars = tt.sortFlag
+			formatter := New(cfg)
+
+			// We need to format the input and expected to normalize whitespace
+			// for a fair comparison after sort
+			formatted := formatter.Format([]byte(tt.input))
+			expectedFormatted := formatter.Format([]byte(tt.expected))
+
+			if string(formatted) != string(expectedFormatted) {
+				t.Errorf("Format() with sort-vars=%v produced unexpected result.\nGot:\n%s\n\nWant:\n%s",
+					tt.sortFlag, formatted, expectedFormatted)
+			}
+		})
+	}
+}

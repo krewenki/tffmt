@@ -17,6 +17,7 @@ type Settings struct {
 	Diff       *bool `yaml:"diff"`
 	Recursive  *bool `yaml:"recursive"`
 	SortInputs *bool `yaml:"sort-inputs"`
+	SortVars   *bool `yaml:"sort-vars"`
 }
 
 // Config holds all configuration and flag values
@@ -28,6 +29,7 @@ type Config struct {
 	Recursive  bool
 	Test       bool
 	SortInputs bool
+	SortVars   bool
 }
 
 // NewConfig creates a new Config with default values
@@ -40,6 +42,7 @@ func NewConfig() *Config {
 		Recursive:  false,
 		Test:       false,
 		SortInputs: false,
+		SortVars:   false,
 	}
 }
 
@@ -131,5 +134,8 @@ func ApplySettings(c *Config, s Settings, passedFlags map[string]bool) {
 	}
 	if s.SortInputs != nil && !passedFlags["sort-inputs"] {
 		c.SortInputs = *s.SortInputs
+	}
+	if s.SortVars != nil && !passedFlags["sort-vars"] {
+		c.SortVars = *s.SortVars
 	}
 }
