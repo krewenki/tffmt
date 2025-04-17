@@ -49,7 +49,6 @@ var (
 	list      = flag.Bool("list", true, "list files whose formatting differs")
 	diff      = flag.Bool("diff", false, "display diffs")
 	recursive = flag.Bool("recursive", false, "recurse into sub‑directories")
-	color     = flag.Bool("color", false, "ignored (kept for cli parity)")
 )
 
 // ————— regex helpers —————————————————————————————————————————————
@@ -83,8 +82,8 @@ func main() {
 				exit = 1
 			}
 		} else if filepath.Ext(p) == ".tf" {
-			if changed, err := process(p); handleResult(changed, err, &exit) != nil {
-			}
+			changed, err := process(p)
+			_ = handleResult(changed, err, &exit)
 		}
 	}
 	os.Exit(exit)
@@ -113,7 +112,7 @@ func walk(root string) error {
 func process(path string) (changed bool, err error) {
 	orig, err := os.ReadFile(path)
 	if err != nil {
-		return
+		return false, err
 	}
 
 	// 1. custom pre‑split
@@ -140,9 +139,16 @@ func process(path string) (changed bool, err error) {
 		showDiff(path, orig, form)
 	}
 	if *write && changed && !*check {
-		err = os.WriteFile(path, form, 0o644)
+		info, err := os.Stat(path)
+		if err != nil {
+			return changed, err
+		}
+		err = os.WriteFile(path, form, info.Mode().Perm())
+		if err != nil {
+			return changed, err
+		}
 	}
-	return
+	return changed, nil
 }
 
 func preprocess(in []byte) []byte {
