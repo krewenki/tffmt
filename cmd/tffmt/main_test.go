@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/krewenki/tffmt/pkg/config"
+	"github.com/krewenki/tffmt/pkg/formatter"
 )
 
 func TestProcessFile(t *testing.T) {
@@ -54,7 +55,11 @@ func TestProcessFile(t *testing.T) {
 
 			// Save original config and restore it afterwards
 			origCfg := cfg
-			defer func() { cfg = origCfg }()
+			origFormatter := formatterInst
+			defer func() {
+				cfg = origCfg
+				formatterInst = origFormatter
+			}()
 
 			// Set config for test
 			cfg = config.NewConfig()
@@ -62,6 +67,7 @@ func TestProcessFile(t *testing.T) {
 			cfg.Check = false
 			cfg.List = false
 			cfg.Diff = false
+			formatterInst = formatter.New(cfg) // Initialize the formatter with the config
 
 			// Process the file
 			changed, err := processFile(filePath)
@@ -106,12 +112,17 @@ func TestCheckFlag(t *testing.T) {
 
 	// Save original config and restore it afterwards
 	origCfg := cfg
-	defer func() { cfg = origCfg }()
+	origFormatter := formatterInst
+	defer func() {
+		cfg = origCfg
+		formatterInst = origFormatter
+	}()
 
 	// Set config for test
 	cfg = config.NewConfig()
 	cfg.Write = false
 	cfg.Check = true
+	formatterInst = formatter.New(cfg) // Initialize the formatter with the config
 
 	exit := 0
 	changed, err := processFile(filePath)
@@ -164,6 +175,106 @@ func TestHandleResult(t *testing.T) {
 
 			if exit != tc.expectExit {
 				t.Errorf("handleResult() exit = %d, want %d", exit, tc.expectExit)
+			}
+		})
+	}
+}
+
+// TestSortInputsFlag tests the sort-inputs command-line flag
+func TestSortInputsFlag(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "tffmt-sort-inputs-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Test file with attributes in non-alphabetical order
+	inputContent := `resource "aws_instance" "example" {
+  zone = "us-west-1a"
+  ami = "ami-12345"
+  instance_type = "t2.micro"
+}`
+
+	// Expected result when sort-inputs is enabled
+	sortedContent := `resource "aws_instance" "example" {
+  ami           = "ami-12345"
+  instance_type = "t2.micro"
+  zone          = "us-west-1a"
+}
+
+`
+
+	// Create test file
+	filePath := filepath.Join(tmpDir, "example.tf")
+	err = os.WriteFile(filePath, []byte(inputContent), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test cases with different flag combinations
+	testCases := []struct {
+		name           string
+		sortInputs     bool
+		expectSorted   bool
+		expectModified bool
+	}{
+		{"sort-inputs disabled", false, false, true}, // Will format but not sort
+		{"sort-inputs enabled", true, true, true},    // Will format and sort
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Reset the file before each test
+			err = os.WriteFile(filePath, []byte(inputContent), 0644)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Save original config and restore it afterwards
+			origCfg := cfg
+			origFormatter := formatterInst
+			defer func() {
+				cfg = origCfg
+				formatterInst = origFormatter
+			}()
+
+			// Set up config for this test case
+			cfg = config.NewConfig()
+			cfg.Write = true
+			cfg.SortInputs = tc.sortInputs
+			formatterInst = formatter.New(cfg)
+
+			// Process the file
+			changed, err := processFile(filePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Check if the file was modified as expected
+			if changed != tc.expectModified {
+				t.Errorf("processFile() changed = %v, want %v", changed, tc.expectModified)
+			}
+
+			// Read the processed file
+			output, err := os.ReadFile(filePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Check if attributes are sorted when sort-inputs is enabled
+			if tc.expectSorted {
+				if !bytes.Equal(output, []byte(sortedContent)) {
+					t.Errorf("With sort-inputs=%v, expected attributes to be sorted.\nGot:\n%s\nWant:\n%s",
+						tc.sortInputs, output, sortedContent)
+				}
+			} else {
+				// When sort-inputs is disabled, we expect the attributes to retain their original order
+				// but with standard formatting applied
+				if bytes.Contains(output, []byte("ami = \"ami-12345\"\n  instance_type")) {
+					t.Errorf("With sort-inputs=%v, attributes should not be sorted but appear to be.\nGot:\n%s",
+						tc.sortInputs, output)
+				}
 			}
 		})
 	}

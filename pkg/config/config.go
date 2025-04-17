@@ -11,32 +11,35 @@ import (
 
 // Settings holds the configuration options for the formatting tool
 type Settings struct {
-	Write     *bool `yaml:"write"`
-	Check     *bool `yaml:"check"`
-	List      *bool `yaml:"list"`
-	Diff      *bool `yaml:"diff"`
-	Recursive *bool `yaml:"recursive"`
+	Write      *bool `yaml:"write"`
+	Check      *bool `yaml:"check"`
+	List       *bool `yaml:"list"`
+	Diff       *bool `yaml:"diff"`
+	Recursive  *bool `yaml:"recursive"`
+	SortInputs *bool `yaml:"sort-inputs"`
 }
 
 // Config holds all configuration and flag values
 type Config struct {
-	Write     bool
-	Check     bool
-	List      bool
-	Diff      bool
-	Recursive bool
-	Test      bool
+	Write      bool
+	Check      bool
+	List       bool
+	Diff       bool
+	Recursive  bool
+	Test       bool
+	SortInputs bool
 }
 
 // NewConfig creates a new Config with default values
 func NewConfig() *Config {
 	return &Config{
-		Write:     true,
-		Check:     false,
-		List:      true,
-		Diff:      false,
-		Recursive: false,
-		Test:      false,
+		Write:      true,
+		Check:      false,
+		List:       true,
+		Diff:       false,
+		Recursive:  false,
+		Test:       false,
+		SortInputs: false,
 	}
 }
 
@@ -125,5 +128,8 @@ func ApplySettings(c *Config, s Settings, passedFlags map[string]bool) {
 	}
 	if s.Recursive != nil && !passedFlags["recursive"] {
 		c.Recursive = *s.Recursive
+	}
+	if s.SortInputs != nil && !passedFlags["sort-inputs"] {
+		c.SortInputs = *s.SortInputs
 	}
 }

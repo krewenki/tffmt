@@ -22,7 +22,7 @@ var (
 func Main() {
 	// Initialize configuration and formatter
 	cfg = config.NewConfig()
-	formatterInst = formatter.New()
+	formatterInst = formatter.New(cfg)
 
 	// Setup command-line flags
 	flag.BoolVar(&cfg.Write, "write", cfg.Write, "write result to source file(s)")
@@ -31,6 +31,7 @@ func Main() {
 	flag.BoolVar(&cfg.Diff, "diff", cfg.Diff, "display diffs")
 	flag.BoolVar(&cfg.Recursive, "recursive", cfg.Recursive, "recurse into sub‑directories")
 	flag.BoolVar(&cfg.Test, "test", cfg.Test, "run tests")
+	flag.BoolVar(&cfg.SortInputs, "sort-inputs", cfg.SortInputs, "alphabetize inputs in resources")
 	flag.Parse()
 
 	// Load settings from config file
